@@ -8,6 +8,7 @@ use Modules\Leave\Models\Holiday;
 use Modules\Leave\Models\LeaveType;
 use Modules\Leave\Models\DayType;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 class SettingsController extends Controller
 {
@@ -173,16 +174,44 @@ class SettingsController extends Controller
             'emergency_contact' => 'nullable|string|max:100',
             'bank_name' => 'nullable|string|max:255',
             'bank_branch' => 'nullable|string|max:255',
+            'branch_code' => 'nullable|string|max:100',
             'account_number' => 'nullable|string|max:100',
             'account_holder_name' => 'nullable|string|max:255',
-            'higher_education' => 'nullable|string',
-            'professional_qualifications' => 'nullable|string',
+            'higher_education' => 'nullable',
+            'working_experience' => 'nullable',
+            'professional_qualifications' => 'nullable',
         ]);
 
         $user->update([
             'name' => $request->name,
             'email' => $request->email,
         ]);
+
+        $higherEducation = null;
+        if ($request->has('higher_education')) {
+            if (is_array($request->higher_education)) {
+                $filtered = array_values(array_filter($request->higher_education, function ($item) {
+                    return !empty(trim($item['qualification'] ?? '')) || !empty(trim($item['institute'] ?? '')) || !empty(trim($item['country'] ?? '')) || !empty(trim($item['duration'] ?? ''));
+                }));
+                $higherEducation = !empty($filtered) ? json_encode($filtered) : null;
+            } else {
+                $higherEducation = $request->higher_education;
+            }
+        }
+
+        $workingExperience = null;
+        if ($request->has('working_experience')) {
+            if (is_array($request->working_experience)) {
+                $filtered = array_values(array_filter($request->working_experience, function ($item) {
+                    return !empty(trim($item['company'] ?? '')) || !empty(trim($item['designation'] ?? '')) || !empty(trim($item['duration'] ?? ''));
+                }));
+                $workingExperience = !empty($filtered) ? json_encode($filtered) : null;
+            } else {
+                $workingExperience = $request->working_experience;
+            }
+        } elseif ($request->has('professional_qualifications')) {
+            $workingExperience = $request->professional_qualifications;
+        }
 
         $employee = \Modules\Employee\Models\Employee::where('user_id', $user->id)->first();
         if ($employee) {
@@ -192,10 +221,12 @@ class SettingsController extends Controller
                 'nic_passport' => $request->nic_passport ?? $employee->nic_passport,
                 'bank_name' => $request->bank_name,
                 'bank_branch' => $request->bank_branch,
+                'branch_code' => $request->branch_code,
                 'account_number' => $request->account_number,
                 'account_holder_name' => $request->account_holder_name,
-                'higher_education' => $request->higher_education,
-                'professional_qualifications' => $request->professional_qualifications,
+                'higher_education' => $higherEducation,
+                'working_experience' => $workingExperience,
+                'professional_qualifications' => $workingExperience,
             ]);
         }
 
@@ -274,6 +305,55 @@ class SettingsController extends Controller
                     $val = $request->has($cbKey) ? '1' : '0';
                     DB::table('settings')->updateOrInsert(['key' => $cbKey], ['value' => $val, 'updated_at' => now()]);
                 }
+            }
+        }
+
+        if ($activeModule === 'general') {
+            $request->validate([
+                'app_logo' => 'nullable|file|mimes:png,jpg,jpeg,svg,webp|max:3072',
+                'app_logo_light' => 'nullable|file|mimes:png,jpg,jpeg,svg,webp|max:3072',
+                'app_icon' => 'nullable|file|mimes:png,jpg,jpeg,svg,webp,ico|max:1024',
+            ]);
+
+            $uploadPath = public_path('uploads/logos');
+            if (!File::exists($uploadPath)) {
+                File::makeDirectory($uploadPath, 0755, true);
+            }
+
+            // Primary App Logo (Dark sidebar & dark views)
+            if ($request->hasFile('app_logo')) {
+                $file = $request->file('app_logo');
+                $old = DB::table('settings')->where('key', 'app_logo')->value('value');
+                if ($old && File::exists(public_path($old))) {
+                    @unlink(public_path($old));
+                }
+                $filename = 'app_logo_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move($uploadPath, $filename);
+                DB::table('settings')->updateOrInsert(['key' => 'app_logo'], ['value' => 'uploads/logos/' . $filename, 'updated_at' => now()]);
+            }
+
+            // Light Mode Logo (Light backgrounds & PDF reports)
+            if ($request->hasFile('app_logo_light')) {
+                $file = $request->file('app_logo_light');
+                $old = DB::table('settings')->where('key', 'app_logo_light')->value('value');
+                if ($old && File::exists(public_path($old))) {
+                    @unlink(public_path($old));
+                }
+                $filename = 'app_logo_light_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move($uploadPath, $filename);
+                DB::table('settings')->updateOrInsert(['key' => 'app_logo_light'], ['value' => 'uploads/logos/' . $filename, 'updated_at' => now()]);
+            }
+
+            // App Icon / Favicon (Collapsed sidebar & browser tabs)
+            if ($request->hasFile('app_icon')) {
+                $file = $request->file('app_icon');
+                $old = DB::table('settings')->where('key', 'app_icon')->value('value');
+                if ($old && File::exists(public_path($old))) {
+                    @unlink(public_path($old));
+                }
+                $filename = 'app_icon_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move($uploadPath, $filename);
+                DB::table('settings')->updateOrInsert(['key' => 'app_icon'], ['value' => 'uploads/logos/' . $filename, 'updated_at' => now()]);
             }
         }
 
@@ -361,6 +441,46 @@ class SettingsController extends Controller
         session(['current_role' => $role]);
 
         return redirect()->back()->with('success', "Role switched to {$role}!");
+    }
+
+    public function resetLogo(Request $request)
+    {
+        $this->authorizeAdminOrHr();
+
+        $type = $request->input('type', 'dark');
+
+        if ($type === 'dark' || $type === 'all') {
+            $old = DB::table('settings')->where('key', 'app_logo')->value('value');
+            if ($old && File::exists(public_path($old))) {
+                @unlink(public_path($old));
+            }
+            DB::table('settings')->where('key', 'app_logo')->delete();
+        }
+
+        if ($type === 'light' || $type === 'all') {
+            $old = DB::table('settings')->where('key', 'app_logo_light')->value('value');
+            if ($old && File::exists(public_path($old))) {
+                @unlink(public_path($old));
+            }
+            DB::table('settings')->where('key', 'app_logo_light')->delete();
+        }
+
+        if ($type === 'icon' || $type === 'all') {
+            $old = DB::table('settings')->where('key', 'app_icon')->value('value');
+            if ($old && File::exists(public_path($old))) {
+                @unlink(public_path($old));
+            }
+            DB::table('settings')->where('key', 'app_icon')->delete();
+        }
+
+        $label = match($type) {
+            'light' => 'Light mode logo',
+            'icon' => 'App icon',
+            'all' => 'All branding logos',
+            default => 'Primary app logo',
+        };
+
+        return redirect()->route('settings.index', ['module' => 'general'])->with('success', "{$label} reset to system default successfully!");
     }
 
     private function authorizeAdminOrHr()
