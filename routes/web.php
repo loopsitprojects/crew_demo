@@ -25,6 +25,7 @@ use Modules\Recruitment\Http\Controllers\RecruitmentController;
 Route::get('/', [LeaveDashboardController::class, 'index'])->name('home');
 Route::get('/dashboard', [LeaveDashboardController::class, 'index'])->name('dashboard');
 Route::get('/leave-management', [LeaveDashboardController::class, 'index'])->name('leave.dashboard');
+Route::get('/leaves', [LeaveDashboardController::class, 'index'])->name('leave.index');
 Route::post('/leave/store', [LeaveDashboardController::class, 'storeLeaveRequest'])->name('leave.store');
 Route::post('/leave/company-holiday', [LeaveDashboardController::class, 'storeCompanyLeave'])->name('leave.company_holiday');
 Route::post('/lieu-claims/store', [LeaveDashboardController::class, 'storeLieuClaim'])->name('lieu-claims.store');

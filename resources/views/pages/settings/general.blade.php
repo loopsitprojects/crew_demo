@@ -220,7 +220,7 @@
                 <i class="ph ph-calendar-plus text-blue-600 dark:text-blue-400 text-lg"></i>
                 <h2 class="text-sm font-black text-slate-900 dark:text-white">Active Custom Company Holidays ({{ count($customHolidays) }})</h2>
             </div>
-            <a href="{{ route('leave.index') }}" class="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1">
+            <a href="{{ route('leave.dashboard') }}" class="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1">
                 <span>Manage on Leave Calendar</span>
                 <i class="ph ph-arrow-right"></i>
             </a>
