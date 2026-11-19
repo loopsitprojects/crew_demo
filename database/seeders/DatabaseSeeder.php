@@ -18,6 +18,28 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+        \App\Models\User::truncate();
+        \Modules\Employee\Models\Department::truncate();
+        \Modules\Employee\Models\Designation::truncate();
+        \Modules\Employee\Models\Employee::truncate();
+        \Modules\Leave\Models\LeaveType::truncate();
+        \Modules\Leave\Models\EmployeeLeaveBalance::truncate();
+        \Modules\Leave\Models\LeaveRequest::truncate();
+        \Modules\Leave\Models\Holiday::truncate();
+        if (\Illuminate\Support\Facades\Schema::hasTable('overtime_records')) {
+            \Modules\Payroll\Models\OvertimeRecord::truncate();
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('appraisal_cycles')) {
+            \Modules\Performance\Models\AppraisalCycle::truncate();
+            \Modules\Performance\Models\AppraisalTemplate::truncate();
+            \Modules\Performance\Models\AppraisalTemplateCriterion::truncate();
+            \Modules\Performance\Models\Appraisal::truncate();
+            \Modules\Performance\Models\AppraisalCriteriaScore::truncate();
+            \Modules\Performance\Models\AppraisalLetter::truncate();
+        }
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+
         // 1. Departments
         $itDept = Department::create(['name' => 'IT', 'code' => 'IT', 'hod_name' => 'Arosh', 'description' => 'Information Technology']);
         $hrDept = Department::create(['name' => 'HR/Admin', 'code' => 'HR', 'hod_name' => 'Supuni Ratnayake', 'description' => 'Human Resources & Administration']);
