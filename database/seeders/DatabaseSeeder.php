@@ -567,6 +567,8 @@ class DatabaseSeeder extends Seeder
                 'approved_by_user_id' => $userSuper->id,
             ]
         );
+
+        $this->call(\Modules\Performance\Database\Seeders\PerformanceDatabaseSeeder::class);
     }
 }
 
